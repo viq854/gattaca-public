@@ -38,8 +38,6 @@ To run the clustering code (Python):
 
 ### Usage
 
-Two executables are provided: ```gattaca``` to build the GAC indices and estimate coverage and ```gattaca-minh``` to compare samples using MinHash.
-
 #### GAC index construction and coverage estimation
 ```
 ./gattaca [command] [options] 
@@ -91,7 +89,7 @@ contig-name1	1000	5 ...	12
 
 The clustering results are written to ```output.clusters```.
 
-#### Sample Comparisongs with MinHash
+#### Sample Comparisons with MinHash
 
 The ```gattaca-minh``` executable is used to compare samples using MinHash.
 ```
