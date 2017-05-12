@@ -1,4 +1,4 @@
-GATTACA: Frameworkd for lightweight metagenomic binning
+GATTACA: Framework for lightweight metagenomic binning
 ============
 
 ### About
@@ -20,20 +20,21 @@ git clone --recursive https://github.com/viq854/gattaca-public.git
 cd src/c
 make all
 ```
-Done!
 
-Internally, the tool uses the following three libraries: ```seqan``` (as submodule), ```libbf``` (as source), and ```cmph``` (as submodule). These are automatically downloaded and installed. Please make sure you specify the ```--recursive ``` flag when cloning.
-
-[In case there are any issues when installing on your system, please let us know and we'll address them quickly. This is our first version of the tool and it hasn't been tested yet across different platforms. Thanks!]
+Internally, the tool uses the following three libraries: ```seqan``` (as submodule), ```libbf``` (as source), and ```cmph``` (as submodule). These are automatically downloaded and installed. Please make sure to specify the ```--recursive ``` flag when cloning.
 
 #### System Requirements
 
-For GAC index construction and coverage estimation:
-
+To build the third-party libraries and the GATTACA C++ source code:  
+```GCC >= 4.7```  
+```CMake >= 2.8```  
 ```OpenMP``` (optional)
 
-For clustering:
+To run the clustering code (Python):  
+```Python 2.7```  
+```NumPy, SciPy, Scikit-Learn```
 
+*In case there are any issues when installing on your system, please let us know and we'll address them quickly. This is our first version of the tool and it hasn't been tested yet across different platforms. Thanks!*
 
 ### Usage
 
@@ -69,7 +70,28 @@ Basic workflow: (1) build the kmer count indices using the ```index``` command f
 
 #### Clustering
 
+To cluster the contigs, please execute the following script. 
 
+```
+python $(GATTACA_HOME)/src/python/gattaca.py cluster \
+		--contigs contigs.fasta \
+          	--coverage coverage_inputtable.tsv \
+	  	--algorithm dirichlet \
+          	--clusters output.clusters
+          
+```
+
+The required ```--coverage``` file is a tab-delimited text file summarizing the co-abundance profiles across the sample panel. It can be created from the output file of the ```lookup``` command above, by adding the header consisting of the sample names and adding the contig name and length to each row. It should have the following format:
+
+```
+contig	length	Sample1	... SampleN
+contig-name1	1000	5 ...	12	
+...
+```
+
+The clustering results are written to ```output.clusters```.
+
+#### Sample Comparisongs with MinHash
 
 The ```gattaca-minh``` executable is used to compare samples using MinHash.
 ```
