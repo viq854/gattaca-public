@@ -18,7 +18,6 @@ extern "C" {
 }
 #include "../seq/types.h"
 #include "counts_table.h"
-#include "../../../third-party/bbhash/BooPHF.h"
 
 // exact counts table using a minimal perfect hash function
 class mphf_table_t : public counts_table_t {
@@ -29,11 +28,6 @@ public:
 	} key_t; // converted struct key to match the cmph API
 	
 	cmph_t* hash; // minimal perfect hash function
-	
-	typedef boomphf::SingleHashFunctor<kmer_2bit_t> hasher_t;
-	typedef boomphf::mphf<uint64, hasher_t> boophf_t;
-	boophf_t* bphf;
-
 	uint64 n_keys; // number of distinct keys
 	counter_t* counts; // array of counts
 	bf::basic_bloom_filter* bf; // bloom filter of distinct keys used during mphf construction 
@@ -74,15 +68,13 @@ public:
 	void init(std::vector<kmer_2bit_t>& keys, const std::vector<counter_t>& key_counts) {
 		// construct the mphf
 		std::cout << "Building the mphf...\n";
-		/*key_t* key_structs = new key_t[n_keys];
+		key_t* key_structs = new key_t[n_keys];
 		#pragma omp parallel for        
 		for(uint64 i = 0; i < n_keys; i++) {
 				get_key(keys[i], key_structs[i]);
 		}
 		build_mpfh(key_structs);
 		free(key_structs);
-		*/
-		bphf = new boomphf::mphf<kmer_2bit_t, hasher_t>(keys.size(), keys, 1);
 
 		// store the keys in a bloom filter
 		std::cout << "Building the bloom filter...\n";
@@ -107,11 +99,10 @@ public:
 		std::memcpy(key_out.val, &key_in, sizeof(key_out.val));
 	}
 	
-	inline uint64 get_id(const kmer_2bit_t& key) const {
-		//key_t key_struct;
-		//get_key(key, key_struct);
-		//return cmph_search(hash, key_struct.val, sizeof(key_struct.val));
-		return bphf->lookup(key);
+	inline unsigned int get_id(const kmer_2bit_t& key) const {
+		key_t key_struct;
+		get_key(key, key_struct);
+		return cmph_search(hash, key_struct.val, sizeof(key_struct.val));
 	}	
 	
 	void build_mpfh(key_t* keys) {
@@ -127,8 +118,7 @@ public:
 	}
 	
 	virtual ~mphf_table_t() {
-		//cmph_destroy(hash);
-		delete bphf;
+		cmph_destroy(hash);
 		bf->clear();
 		free(bf);
 		free(counts);
@@ -137,7 +127,7 @@ public:
 	
 	// insert a kmer into the sketch (the kmer must be one of the distinct keys)
 	virtual void insert(const kmer_2bit_t& key, const int stream_id)  { 
-		const uint64 id = get_id(key);
+		const unsigned int id = get_id(key);
 		counter_t newval, curr;
 		do {
 			curr = counts[id];
@@ -189,12 +179,9 @@ public:
 	}
 	
 	void save_mphf_aux(const std::string& fname) {
-		//FILE* mphf_fd = fopen(fname.c_str(), "a");
-		//cmph_dump(hash, mphf_fd); 
-		//fclose(mphf_fd);
-		std::ofstream os(fname, std::ios::binary);
-		bphf->save(os);
-		os.close();
+		FILE* mphf_fd = fopen(fname.c_str(), "a");
+		cmph_dump(hash, mphf_fd); 
+		fclose(mphf_fd);
 	}
 	
 	// load the table from file
@@ -210,7 +197,7 @@ public:
 		size_t nbits;
 		file.read(reinterpret_cast<char*>(&nbits), sizeof(nbits));
 		long int bits_size;
-        	file.read(reinterpret_cast<char*>(&bits_size), sizeof(bits_size));
+        file.read(reinterpret_cast<char*>(&bits_size), sizeof(bits_size));
 		file.read(reinterpret_cast<char*>(&bf->bits_.bits_[0]), bits_size*sizeof(bf->bits_.bits_[0]));
 
 		counts = new counter_t[n_keys];
@@ -221,17 +208,11 @@ public:
 	}
 	
 	long int load_mpfh_aux(const std::string& fname, long int file_offset) {
-		//FILE* mphf_fd = fopen(fname.c_str(), "r");
-		//fseek(mphf_fd, file_offset, SEEK_SET);
-		//hash = cmph_load(mphf_fd);
-		//long int s = ftell(mphf_fd);
-		//fclose(mphf_fd);
-			
-		bphf = new boomphf::mphf<kmer_2bit_t, hasher_t>();
-		std::ifstream is(fname, std::ios::binary);
-                bphf->load(is);
-		long int s = is.tellg();
-		is.close();
+		FILE* mphf_fd = fopen(fname.c_str(), "r");
+		fseek(mphf_fd, file_offset, SEEK_SET);
+		hash = cmph_load(mphf_fd);
+		long int s = ftell(mphf_fd);
+		fclose(mphf_fd);
 		return s;
 	}
 	
