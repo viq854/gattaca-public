@@ -32,7 +32,7 @@ deps_install.done:
 	@touch $@
 
 CC=		g++
-CFLAGS=		-msse4.1 -o rand_sse -Wall -O3 -std=c++0x
+CFLAGS=		-msse4.1 -o rand_sse -Wall -O3 -std=c++0x -Wno-unknown-pragmas
 DFLAGS=		-DSEQAN_HAS_ZLIB=$(HAVE_ZLIB) -DBITS_PER_COUNTER=$(BITS_PER_COUNTER)
 
 ifeq ($(USE_OPENMP), true)
