@@ -34,7 +34,7 @@ def dirichlet_em(X_all, K, alpha=1e-3, init=default_init, seed=None,
   hp.nu0    = d+2
 
   variances = np.var(X_all, axis=1)
-  variances *= 2
+  variances *= 1.5
   hp.m0     = np.mean(X_all,axis=1) if init['m0'] is None \
               else init['m0']
   hp.W0    = np.diag(1./(variances*d)) if init['W0'] is None else init['W0']
