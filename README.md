@@ -21,7 +21,9 @@ cd src/c
 make all
 ```
 
-Internally, the tool uses the following three libraries: ```seqan``` (as submodule), ```libbf``` (as source), and ```cmph``` (as submodule). These are automatically downloaded and installed. Please make sure to specify the ```--recursive ``` flag when cloning.
+Internally, the tool uses the following three libraries: ```seqan``` (as submodule), ```libbf``` (as source), and ```cmph``` (as submodule). These are automatically downloaded and installed. Please make sure to specify the ```--recursive ``` flag when cloning. 
+
+Note: the ```CXX``` environment variable can be used to provide a specific version of GCC during compilation by running ```export CXX=/path/to/gcc``` before ```make all``` above. 
 
 #### System Requirements
 
@@ -68,7 +70,7 @@ Basic workflow: (1) build the kmer count indices using the ```index``` command f
 
 #### Clustering
 
-To cluster the contigs, please execute the following script. 
+Contigs can be clustered by executing the following script:
 
 ```
 python $(GATTACA_HOME)/src/python/gattaca.py cluster \
@@ -87,7 +89,9 @@ contig-name1	1000	5 ...	12
 ...
 ```
 
-The clustering results are written to ```output.clusters```.
+The clustering results will be written to ```output.clusters```.
+
+Several parameters of ```gattaca.py``` might be of interest (running ```python $(GATTACA_HOME)/src/python/gattaca.py cluster -h``` will display the options). For example, ```--iter``` specifies the number of iterations of the EM algorithm; ```--algorithm``` can be used to select the desired clustering algorithm; ```--seed``` controls the seed used by the random number generator during cluster initialization (fixing the seed to the same number will prevent the clustering results to vary from run to run).   
 
 #### Sample Comparisons with MinHash
 
