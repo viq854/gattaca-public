@@ -60,7 +60,7 @@ struct seq_file_reader_t {
 
 	void open_file(const std::string& fname, seq_file_reader_mode_t file_mode = FASTA) {
 		if (!seqan::open(file_handle, seqan::toCString(fname))) {
-			std::cerr << "ERROR: Could not open FASTA/FASTQ file: " << fname << "\n";
+			std::cout << "ERROR: Could not open FASTA/FASTQ file: " << fname << "\n";
 			exit(1);
 		}
 		n_records = 0;
@@ -69,9 +69,9 @@ struct seq_file_reader_t {
 	
 	// load FASTA/FASTQ read records
 	bool load_next_read(read_t& r) {
-		//if(n_records != 0 && n_records % 1000000 == 0) {
-			//std::cout << "Processed " << n_records << " reads\n";
-		//}
+		if(n_records != 0 && n_records % 1000000 == 0) {
+			std::cout << "Processed " << n_records << " reads\n";
+		}
 		if(!seqan::atEnd(file_handle)) {
 			if(mode == FASTQ) {
 				seqan::readRecord(r.name, r.seq, r.qual, file_handle);
@@ -196,7 +196,8 @@ struct kmer_parser_t {
 };
 
 // load the index file containing a list of FASTQ files (one per sample)
-void load_panel_file(const std::string& fastq_index_fname, std::vector<std::string>& fastq_files) ;
+void load_panel_file(const std::string& fastq_index_fname, std::vector<std::string>& fastq_files);
+void load_panel_file(const std::string& fastq_index_fname, std::vector<std::vector<std::string>>& fastq_files) ;
 void get_seq_kmers_packed(const std::string& seq_file, const int kmer_len, std::vector<kmer_2bit_t>& keys);
 void get_seq_kmers_hashed(const std::string& seq_file, const int kmer_len, std::vector<kmer_2bit_t>& keys);
 void store_kmers(const std::string& fname, const std::vector<kmer_2bit_t>& keys);

@@ -6,6 +6,7 @@
 #include <time.h>
 #include <limits.h>
 #include <fstream>
+#include <sstream>
 #include "types.h"
 #include "io.h"
 #include "city.h"
@@ -26,8 +27,28 @@ void load_panel_file(const std::string& panel_fname, std::vector<std::string>& f
 	std::cout<< "Panel file contains " << files.size() << " entries. \n";
 }
 
+void load_panel_file(const std::string& panel_fname, std::vector<std::vector<std::string>>& files) {
+	std::ifstream file;
+	file.open(panel_fname.c_str(), std::ios::in);
+	if (!file.is_open()) {
+		std::cerr << "load_panel_file: Cannot open the panel file: " << panel_fname << "!\n";
+		exit(1);
+	}
+	std::string line;
+	while(std::getline(file, line)) {
+	    std::stringstream file_names(line);
+	    std::vector<std::string> per_sample_files;
+	    std::string fname;
+	    while(std::getline(file_names, fname, '\t')) {
+		    per_sample_files.push_back(fname);
+	    }
+	    files.push_back(per_sample_files);
+	}
+	file.close();
+	std::cout<< "Panel file contains " << files.size() << " entries. \n";
+}
+
 void get_seq_kmers_packed(const std::string& seq_file, const int kmer_len, std::vector<kmer_2bit_t>& keys) {
-	keys.reserve(100000000);
 	seq_file_reader_t reader;
 	reader.open_file(seq_file, FASTA);
 	read_t r;
@@ -46,9 +67,12 @@ void get_seq_kmers_packed(const std::string& seq_file, const int kmer_len, std::
 void get_seq_kmers_hashed(const std::string& seq_file, const int kmer_len, std::vector<kmer_2bit_t>& keys) {
 	keys.reserve(100000000);
 	seq_file_reader_t reader;
-	reader.open_file(seq_file, FASTA);
+	std::cout << "Opening file " << seq_file << "\n";
+	reader.open_file(seq_file, FASTQ);
 	read_t r;
+	int i = 0;
 	while(reader.load_next_read(r)) {
+		i++;
 		for(int j = 0; j < (int) r.seq.size() - kmer_len + 1; j++) {
 			kmer_2bit_t kmer_hash = CityHash64(&r.seq[j], kmer_len);
 			if(kmer_hash != 0) {
@@ -56,6 +80,7 @@ void get_seq_kmers_hashed(const std::string& seq_file, const int kmer_len, std::
 			}
 		}
 	}
+	std::cout << "Loaded " << i << " reads\n";
 	reader.close_file();
 }
 

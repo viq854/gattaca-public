@@ -52,8 +52,8 @@ struct index_params_t {
 // multi-sample counts index
 struct index_t {
 	// construction
-	static void build_and_save(const std::vector<std::string>& files_to_index, index_params_t& params);
-	static void build_and_save(const std::vector<std::string>& files_to_index, const int n_count_bits, index_params_t& params);
+	static void build_and_save(const std::vector<std::vector<std::string>>& files_to_index, index_params_t& params);
+	static void build_and_save(const std::vector<std::vector<std::string>>& files_to_index, const int n_count_bits, index_params_t& params);
 	static void discretize(const std::string& in_index_fname, const std::string& out_index_fname, const int nbits, const int min_r, const int max_r, const int max_v, index_params_t& params);
 	void load(const std::vector<std::string>& index_files, index_params_t& params);
 
@@ -84,6 +84,7 @@ struct index_t {
 protected:
 	static counts_table_t* init_counts_table(index_params_t& params);
 	static counts_table_t* count(const std::string& seq_file, const index_params_t& params);
+	static counts_table_t* count_mphf(const std::vector<std::string>& seq_file, const index_params_t& params);
 	static counts_table_t* count_mphf(const std::string& seq_file, const index_params_t& params);
 	static counts_table_t* count_minhash(const std::string& seq_file, const index_params_t& params);
 

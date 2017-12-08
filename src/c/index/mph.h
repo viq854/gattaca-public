@@ -12,6 +12,7 @@
 #include <bf.h>
 #if defined(_OPENMP)
 #include <omp.h>
+//#include <parallel/algorithm>
 #endif
 extern "C" {
 #include <cmph.h>
@@ -34,14 +35,39 @@ public:
 
 	mphf_table_t() {} // todo: clean up empty constructor, refactor
 	mphf_table_t(std::vector<kmer_2bit_t>& keys) {
-		std::cout << "Sorting and counting... " << keys.size() << " kmers\n";
-		std::sort(keys.begin(), keys.end());
-
-		std::vector<kmer_2bit_t> keys_distinct;
-		std::vector<counter_t> key_counts;
-		keys_distinct.reserve(keys.size());
-		key_counts.reserve(keys.size());
+		keys.shrink_to_fit();
+		std::cout << "Sorting keys... " << keys.size() << " kmers\n";
+//#if defined(_OPENMP)
+//        __gnu_parallel::sort(keys.begin(), keys.end());
+//#else
+        std::sort(keys.begin(), keys.end());
+//#endif
+		// find the number of distinct keys
+		std::cout << "Counting distinct kmers...\n";
+		n_keys = 0;
 		counter_t c = 1;
+		for(uint64 i = 1; i < keys.size(); i++) {
+			if(keys[i] != keys[i-1]) {
+				if(c > MIN_KMER_COUNT) {
+				    n_keys++;
+				}
+				c = 1;
+			} else {
+                if(c < std::numeric_limits<counter_t>::max()) {
+					c++;
+				}
+			}
+		}
+		std::cout << "Number of distinct kmers: " << n_keys << "\n";
+
+        // store the keys in a bloom filter
+		std::cout << "Counting and bloom filter population...\n";
+		bf = new bf::basic_bloom_filter(0.05, n_keys, 0, false, false);
+        key_t* key_structs = new key_t[n_keys];
+		std::vector<counter_t> key_counts(n_keys);
+
+		uint64 idx = 0;
+		c = 1;
 		for(uint64 i = 1; i < keys.size(); i++) {
 			if(keys[i] == keys[i-1]) {
 				if(c < std::numeric_limits<counter_t>::max()) {
@@ -49,27 +75,41 @@ public:
 				}
 			} else {
 				if(c > MIN_KMER_COUNT) {
-					keys_distinct.push_back(keys[i-1]);
-					key_counts.push_back(c);
+				    get_key(keys[i-1], key_structs[idx]);
+					key_counts[idx] = c;
+					idx++;
+					bf->add(keys[i-1]);
 				}
 				c = 1;
 			}
 		}
-		if(c > MIN_KMER_COUNT) {
-			keys_distinct.push_back(keys[keys.size()-1]);
-			key_counts.push_back(c);
+        if(c > MIN_KMER_COUNT) {
+            get_key(keys[keys.size()-1], key_structs[idx]);
+            key_counts[idx] = c;
+			bf->add(keys[keys.size()-1]);
+        }
+        keys = std::vector<kmer_2bit_t>();
+
+		std::cout << "Building the mphf...\n";
+		build_mpfh(key_structs);
+
+        std::cout << "Scattering counts...\n";
+		counts = new counter_t[n_keys];
+		#pragma omp parallel for
+		for(uint64 i = 0; i < n_keys; i++) {
+				const unsigned int id = get_id(key_structs[i]);
+				counts[id] = key_counts[i];
 		}
-		n_keys = keys_distinct.size();
-		//std::cout << "Number of distinct kmers: " << n_keys << "\n";
-		keys.clear();
-		init(keys_distinct, key_counts);
+		free(key_structs);
+		key_counts.clear();
+		std::cout << "Index construction done!\n";
 	}
 
-	void init(std::vector<kmer_2bit_t>& keys, const std::vector<counter_t>& key_counts) {
+	void init(std::vector<kmer_2bit_t>& keys, std::vector<counter_t>& key_counts) {
 		// construct the mphf
 		std::cout << "Building the mphf...\n";
 		key_t* key_structs = new key_t[n_keys];
-		#pragma omp parallel for        
+		#pragma omp parallel for
 		for(uint64 i = 0; i < n_keys; i++) {
 				get_key(keys[i], key_structs[i]);
 		}
@@ -98,7 +138,11 @@ public:
 	static inline void get_key(const kmer_2bit_t& key_in, key_t& key_out) {
 		std::memcpy(key_out.val, &key_in, sizeof(key_out.val));
 	}
-	
+
+	inline unsigned int get_id(const key_t& key_struct) const {
+		return cmph_search(hash, key_struct.val, sizeof(key_struct.val));
+	}
+
 	inline unsigned int get_id(const kmer_2bit_t& key) const {
 		key_t key_struct;
 		get_key(key, key_struct);

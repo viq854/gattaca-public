@@ -8,11 +8,11 @@
 #include "../seq/io.h"
 #include "index.h"
 
-void index_t::build_and_save(const std::vector<std::string>& files_to_index, index_params_t& params) {
+void index_t::build_and_save(const std::vector<std::vector<std::string>>& files_to_index, index_params_t& params) {
 	build_and_save(files_to_index, std::numeric_limits<counter_t>::digits, params);
 }
 
-void index_t::build_and_save(const std::vector<std::string>& files_to_index, const int n_count_bits, index_params_t& params) {
+void index_t::build_and_save(const std::vector<std::vector<std::string>>& files_to_index, const int n_count_bits, index_params_t& params) {
 	std::string index_fname_suffix(".k");
 	index_fname_suffix += std::to_string(params.k);
 	index_fname_suffix += std::string(".gatc"); // TODO: enforce identical params upon loading
@@ -21,11 +21,11 @@ void index_t::build_and_save(const std::vector<std::string>& files_to_index, con
 	#if defined(_OPENMP)
 	#pragma omp parallel for
 	#endif
-	for(unsigned int i = 0; i < files_to_index.size(); i++) {
-		std::cout << "Processing sample " << i << " from file " << files_to_index[i] << "\n";
+	for(unsigned int i = 0; i < files_to_index.size(); i++) { // over samples
+	    std::cout << "Processing sample " << i << "\n";
 		counts_table_t* table = count_mphf(files_to_index[i], params);
 		table->print_stats();
-		std::string index_fname(files_to_index[i].c_str());
+		std::string index_fname(files_to_index[i][0].c_str());
 		index_fname += index_fname_suffix;
 		table->save_to_file(index_fname, n_count_bits);
 		delete table;
@@ -60,8 +60,19 @@ counts_table_t* index_t::init_counts_table(index_params_t& params) {
 }
 
 counts_table_t* index_t::count_mphf(const std::string& seq_file, const index_params_t& params) {
+    std::vector<std::string> per_sample_files;
+    per_sample_files.push_back(seq_file);
+    return count_mphf(per_sample_files, params);
+}
+
+counts_table_t* index_t::count_mphf(const std::vector<std::string>& seq_files, const index_params_t& params) {
 	std::vector<kmer_2bit_t> keys;
-	get_seq_kmers_packed(seq_file, params.k, keys);
+	keys.reserve(100000000);
+
+    for(unsigned int i = 0; i < seq_files.size(); i++) {
+        std::cout << "... using file: " << seq_files[i] << "\n";
+	    get_seq_kmers_packed(seq_files[i], params.k, keys);
+	}
 	return new mphf_table_t(keys);
 }
 

@@ -14,8 +14,11 @@ void print_usage(const index_params_t& params) {
 	std::cout<<"Usage: ./gattaca [command] [options] \n";
 	std::cout<<"\nCommand: index \n\n";
 	std::cout<<"\t Options:\n\n";
-	std::cout<<"\t		-i <arg>	sample FASTA/FASTQ file to index\n";
-	std::cout<<"\t		-f <arg>	text file containing a list of sample FASTA/FASTQ files to index (one line per sample)\n";
+	std::cout<<"\t		-i <arg>	FASTA/FASTQ file to index\n";
+	std::cout<<"\t		-1 <arg>	FASTA/FASTQ file to index (identical to -i)\n";
+	std::cout<<"\t		-2 <arg>	additional FASTA/FASTQ file to include in the index (e.g. paired-end data)\n";
+	std::cout<<"\t		-3 <arg>	additional FASTA/FASTQ file to include in the index \n";
+	std::cout<<"\t		-f <arg>	text file containing a list of FASTA/FASTQ files to index (one line per index, multiple files can be specified delimited by tabs)\n";
 	std::cout<<"\t		-k <arg>	length of the sequence kmers (default: " << params.k << ")\n";
 	std::cout<<"\nCommand: lookup \n\n";
 	std::cout<<"\t Options:\n\n";
@@ -42,11 +45,16 @@ int main(int argc, char *argv[]) {
 	srand(1);
 	if (strcmp(argv[1], "index") == 0) {
 		std::string single_sample_fname;
+		std::string single_sample_fname_aux1;
+		std::string single_sample_fname_aux2;
 		std::string panel_fname;
 		int c;
-		while ((c = getopt(argc-1, argv+1, "i:f:k:t:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "i:f:k:t:1:2:3:")) >= 0) {
 			switch (c) {
 				case 'i': single_sample_fname = std::string(optarg); break;
+				case '1': single_sample_fname = std::string(optarg); break;
+				case '2': single_sample_fname_aux1 = std::string(optarg); break;
+				case '3': single_sample_fname_aux2 = std::string(optarg); break;
 				case 'f': panel_fname = std::string(optarg); break;
 				case 'k': params.k = atoi(optarg); break;
 				case 't': params.n_threads = atoi(optarg); break;
@@ -57,9 +65,19 @@ int main(int argc, char *argv[]) {
 		omp_set_num_threads(params.n_threads);
 		#endif
 
-		std::vector<std::string> files_to_index;
+		std::vector<std::vector<std::string>> files_to_index;
+		std::vector<std::string> per_sample_files;
 		if(!single_sample_fname.empty()) {
-			files_to_index.push_back(single_sample_fname);
+		    per_sample_files.push_back(single_sample_fname);
+		}
+		if(!single_sample_fname_aux1.empty()) {
+		    per_sample_files.push_back(single_sample_fname_aux1);
+		}
+		if(!single_sample_fname_aux2.empty()) {
+		    per_sample_files.push_back(single_sample_fname_aux2);
+		}
+        if(!per_sample_files.empty()) {
+		    files_to_index.push_back(per_sample_files);
 		}
 		if (!panel_fname.empty()) {
 			load_panel_file(panel_fname, files_to_index);
@@ -101,7 +119,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			if(!single_sample_fname.empty() && !panel_fname.empty()) {
-				std::cout<<"[!]Please provide either the -r or the -f parameter, not both.\n";
+				std::cout<<"[!]Please provide either the -i or the -f parameter, not both.\n";
 				print_usage(params);
 				return 0;
 			}
